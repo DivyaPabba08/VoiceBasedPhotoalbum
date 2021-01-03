@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Smart Photo Album</title>
+    <link rel="shortcut icon" href="#" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="js/lib/axios/dist/axios.standalone.js"></script>
+    <script type="text/javascript" src="js/lib/CryptoJS/rollups/hmac-sha256.js"></script>
+    <script type="text/javascript" src="js/lib/CryptoJS/rollups/sha256.js"></script>
+    <script type="text/javascript" src="js/lib/CryptoJS/components/hmac.js"></script>
+    <script type="text/javascript" src="js/lib/CryptoJS/components/enc-base64.js"></script>
+    <script type="text/javascript" src="js/lib/url-template/url-template.js"></script>
+    <script type="text/javascript" src="js/lib/apiGatewayCore/sigV4Client.js"></script>
+    <script type="text/javascript" src="js/lib/apiGatewayCore/apiGatewayClient.js"></script>
+    <script type="text/javascript" src="js/lib/apiGatewayCore/simpleHttpClient.js"></script>
+    <script type="text/javascript" src="js/lib/apiGatewayCore/utils.js"></script>
+    <script type="text/javascript" src="js/apigClient.js"></script>
+    <script src="search.js"></script>
+    <script src="dist/main.js"></script>
+    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.357.0.min.js"></script>
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script type="text/javascript">
+     //Bucket Configurations
+     var bucketName = 'hw3-fall2020-photos';
+     var bucketRegion = 'us-east-1';
+     var IdentityPoolId = 'us-east-1:6a44b68f-3689-42c0-93a8-dafcbed13f62';
+     AWS.config.update({
+                    region: bucketRegion,
+                    credentials: new AWS.CognitoIdentityCredentials({
+                    IdentityPoolId: IdentityPoolId
+                    })
+                });
+
+                var s3 = new AWS.S3({
+                    apiVersion: '2006-03-01',
+                    params: {Bucket: bucketName}
+            });
+    </script>
+</head>
+
+<body>
+    <div class="container" style="max-width: 720px; margin-top: 10px;">
+        <div class= "header">
+        <h1>Smart Photo Album</h1>
+        </div>
+        <hr/>
+        <div id="error" class="isa_error"></div>
+
+        <div class="input-group">
+            <input id="note-textarea" type="text" class="form-control" placeholder="Search for a photo" name="search">
+            <div class="input-group-btn">
+                <button class="btn btn-default" type="submit" onclick="searchPhoto()"><i class="fa fa-search"></i></button>
+            </div>
+        </div>     
+
+        <div id="error" class="isa_error"></div>
+
+        <div class="row">
+            <div class="col" style="display:none;">
+                <label>Access ID:</label>
+                <input type="password" id="access_id" placeholder="ACCESS ID" value="AKIATR7FLTFAILRSADE7" />
+
+                <label>Secret Key:</label>
+                <input type="password" id="secret_key" placeholder="SECRET KEY" value="ilxzXwA5nCgcCJll2tqAKLvbPGgzkx5txffR5O5J" />
+                <label>Session Token (if using MFA):</label>
+                <input type="password" id="session_token" placeholder="SESSION TOKEN" value="" />
+            </div>
+            <div class="col" style="display:none;">
+                <label>Language: </label>
+                <select id="language">
+                    <optgroup label="English">
+                        <option value="en-US">US English (en-US)</option>
+                        <option value="en-AU">Australian English (en-AU)</option>
+                        <option value="en-GB">British English (en-GB)</option>
+                    </optgroup>
+                    <optgroup label="French">
+                        <option value="fr-CA">Canadian French (fr-CA)</option>
+                        <option value="fr-FR">French (fr-FR)</option>
+                    </optgroup>
+                    <optgroup label="Spanish">
+                        <option value="es-US">US Spanish (es-US)</option>
+                    </optgroup>
+                </select>
+
+                <label>Region:</label>
+                <select id="region">
+                    <option value="us-east-1">US East (N. Virginia)</option>
+                    <option value="us-east-2">US East (Ohio)</option>
+                    <option value="us-west-2">US West (Oregon)</option>
+                    <option value="ap-southeast-2">Asia Pacific (Sydney)</option>
+                    <option value="ca-central-1">Canada (Central)</option>
+                    <option value="eu-west-1">EU (Ireland)</option>
+                </select>
+            </div>
+        </div>
+        <textarea id="transcript" placeholder="Press Start and speak into your mic" rows="5"
+            readonly="readonly"></textarea>
+        <div class="row">
+            <div class="col">
+                <button id="start-button" class="button-xl" title="Start Transcription">
+                    <i class="fa fa-microphone"></i> Start
+                </button>
+                <button id="stop-button" class="button-xl" title="Stop Transcription" disabled="true"><i
+                        class="fa fa-stop-circle"></i> Stop
+                </button>
+                <button id="reset-button" class="button-xl button-secondary" title="Clear Transcript"> 
+                    Clear Transcript
+                </button>
+            </div>
+        </div>
+
+        <div>
+            <input type="file" id="fileUpload">
+            <button onclick="s3upload()">Upload</button>
+        </div>
+
+        <progress max=”100” value=”0”></progress>
+
+        <script type="text/javascript">
+
+          function s3upload() {  
+                    var files = document.getElementById('fileUpload').files;
+                    if (files) 
+                    {
+                        var file = files[0];
+                        var fileName = file.name;
+                        var filePath = fileName;
+                
+                        s3.upload({
+                                        Key: filePath,
+                                        Body: file,
+                                        ACL: 'public-read'
+                                    }, function(err, data) {
+                                        if(err) {
+                                            reject('error');
+                                        }
+                                        
+                                        alert('Successfully Uploaded!');
+                                    }).on('httpUploadProgress', function (progress) {
+                                        var uploaded = parseInt((progress.loaded * 100) / progress.total);
+                                        $("progress").attr('value', uploaded);
+                                    });
+                    }
+          };
+        </script>
+
+        <div>
+            <div class="banner-section" id="img-container">
+                <p id="displaytext"></p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <script src="dist/main.js"></script>
+
+
+
+</body>
+</html>

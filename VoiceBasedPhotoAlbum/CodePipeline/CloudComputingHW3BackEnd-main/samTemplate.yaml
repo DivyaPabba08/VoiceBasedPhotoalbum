@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: CD Demo Lambda
+Resources:
+  HW3LF2Lambda:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: LF2_HW3_CP
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      CodeUri: ./LF2
+      Description: 'Lambda function 2 HW3'
+      MemorySize: 128
+      Timeout: 30
+      Role: 'arn:aws:iam::176748515449:role/LF2_HW3_CP_ROLE'
+      Events:
+        getAZsAPI:
+          Type: Api
+          Properties:
+            Path: /getazs
+            Method: get
+      Environment:
+        Variables:
+          REGION: us-east-1
+
+  HW3LF1Lambda:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      FunctionName: LF1_HW3_CP3
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      CodeUri: ./LF1
+      Description: 'Lambda function 1 HW3'
+      MemorySize: 128
+      Timeout: 30
+      Role: 'arn:aws:iam::176748515449:role/LF1_HW3_CP2_ROLE'
+      #Policies:
+      #  - AmazonS3FullAccess
+      #  - AWSQuickSightElasticsearchPolicy
+      #  - AmazonRekognitionFullAccess
+      Events:
+        CreateThumbnailEvent:
+          Type: S3
+          Properties:
+            Bucket: !Ref ThirdSrcBucket
+            Events: s3:ObjectCreated:*
+
+  LF1LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: 
+      - HW3LF1Lambda
+    Properties:
+      LogGroupName: /aws/lambda/LF1_HW3_CP3
+
+  LF2LambdaLogGroup:
+    Type: AWS::Logs::LogGroup
+    DependsOn: 
+      - HW3LF2Lambda
+    Properties:
+      LogGroupName: /aws/lambda/LF2_HW3_CP
+
+  ThirdSrcBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: hw3-fall2020-photos-cp
